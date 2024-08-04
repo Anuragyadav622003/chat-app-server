@@ -5,13 +5,15 @@ const cors = require("cors");
 const io = require("socket.io")(server, {
 	cors: {
 		origin: "*",
-		methods: [ "GET", "POST" ]
-	}
+		methods: ["GET", "POST"],
+	},
 });
 
 app.use(cors());
 
 const PORT = process.env.PORT || 5000;
+
+let users = [];
 
 app.get('/', (req, res) => {
 	res.send('Running');
@@ -20,8 +22,13 @@ app.get('/', (req, res) => {
 io.on("connection", (socket) => {
 	socket.emit("me", socket.id);
 
+	users.push({ id: socket.id });
+	io.emit("updateUserList", users);
+
 	socket.on("disconnect", () => {
-		socket.broadcast.emit("callEnded")
+		users = users.filter(user => user.id !== socket.id);
+		io.emit("updateUserList", users);
+		socket.broadcast.emit("callEnded");
 	});
 
 	socket.on("callUser", ({ userToCall, signalData, from, name }) => {
@@ -29,7 +36,7 @@ io.on("connection", (socket) => {
 	});
 
 	socket.on("answerCall", (data) => {
-		io.to(data.to).emit("callAccepted", data.signal)
+		io.to(data.to).emit("callAccepted", data.signal);
 	});
 });
 
